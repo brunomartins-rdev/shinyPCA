@@ -10,7 +10,13 @@ uploadUI <- function(id) {
         sidebar = bslib::sidebar(
             sidebarTags(id)
         ),
-        uploadMainContent(id)
+        bslib::navset_card_underline(
+            title = 'EDA',
+            bslib::nav_panel(
+                'Data',
+                uploadHeadData(id)
+            )
+        )
     )
 }
 
@@ -45,7 +51,7 @@ sidebarTags <- function(id) {
 #'
 #' @return A list of UI elements for file upload and settings
 #' @export
-uploadMainContent <- function(id) {
+uploadHeadData <- function(id) {
     ns <- shiny::NS(id)
     shiny::tableOutput(ns('data_head'))
 }
@@ -60,7 +66,7 @@ uploadServer <- function(id) {
     shiny::moduleServer(id, function(input, output, session) {
         dataset <- shiny::reactive({
             shiny::req(input$file_input)
-            vroom::vroom(input$file_input$datapath, delim = input$delimiter)
+            df <- vroom::vroom(input$file_input$datapath, delim = input$delimiter)
         })
 
         shiny::observe({
@@ -72,11 +78,21 @@ uploadServer <- function(id) {
             )
         })
 
-        output$data_head <- shiny::renderTable({
-            shiny::req(dataset())
-            utils::head(dataset())
+        filtered_dat <- shiny::reactive({
+            req(dataset())
+            cols <- input$cols_to_remove
+            if (!is.null(cols)) {
+                return(dataset() %>% dplyr::select(-cols))
+            } else {
+                return(dataset())
+            }
         })
 
-        return(dataset)
+        output$data_head <- shiny::renderTable({
+            shiny::req(filtered_dat())
+            utils::head(filtered_dat())
+        })
+
+        return(filtered_dat)
     })
 }
